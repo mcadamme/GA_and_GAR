@@ -43,27 +43,20 @@ real_diff <- nuc_sus-nuc_res
 
 #resampling fasta files to generate new nuc div estimates
 
-#First making resampled nuc_sus
-GA_resamp_nucdiv <-numeric(0)
+#resampled (without replacement) nuc divs from permuted pops.
+
+resamp_nucdiv_diff <-numeric(0)
+
 for (i in 1:1000){
-fasta.sample(infile = "/PATH/TO/ALL.fasta", nseq = 48,
-             replacement = FALSE, file.out = "out.GA")
-GA_resamp <- read.FASTA(file = "~/out.GA")
-GA_resamp_nucdiv<- c(GA_resamp_nucdiv, nuc.div(GA_resamp))
+fasta.sample(infile = "/PATH_TO/ALL.fasta", nseq = 92,
+             replacement = FALSE, file.out = "out.fasta")
+GA_resamp <- head(read.FASTA(file = "~/out.fasta"), n = 48)
+GAR_resamp <- tail(read.FASTA(file = "~/out.fasta"), n = 44)
+diff <- (nuc.div(GA_resamp))-(nuc.div(GAR_resamp))
+resamp_nucdiv_diff <- c(nucdiv_diff, diff)
 }
 
-#Next making resampled nuc_res
-GAR_resamp_nucdiv <-numeric(0)
-for (i in 1:1000){
-  fasta.sample(infile = "/PATH/TO/ALL.fasta", nseq = 44,
-               replacement = FALSE, file.out = "out.GAR")
-  GAR_resamp <- read.FASTA(file = "~/out.GAR")
-  GAR_resamp_nucdiv<- c(GAR_resamp_nucdiv, nuc.div(GAR_resamp))
-}
 
-#getting the difference between pi estimates for resampled GA and GAR
-resamp_diff_nucdiv <- GA_resamp_nucdiv - GAR_resamp_nucdiv
-
-hist(resamp_diff_nucdiv, main = "CAD86c Distribution of NucDiv Diff")
+hist(resamp_nucdiv_diff, main = "CAD86c Distribution of NucDiv Diff")
 
 sig <- sum(resamp_diff_nucdiv > real_diff)# shows the p-value for the permutation test.
