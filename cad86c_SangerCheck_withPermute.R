@@ -11,10 +11,10 @@ biocLite("Biostrings")
 
 
 #starting with primers 1b
-CAD_GAR <- read.dna(file = "PATH/TO/FILE.aln", 
+CAD_GAR <- read.dna(file = "/PATH/TO/FILE.aln", 
                       format = "clustal")
 
-CAD_GA <- read.dna(file = "PATH/TO/FILE.aln", 
+CAD_GA <- read.dna(file = "/PATH/TO/FILE.aln", 
                       format = "clustal")
 
 #Counting the number of segregating sites in these two datasets
@@ -28,7 +28,7 @@ length(seg_sus)
 theta_res <- theta.s(CAD_GAR)
 theta_res
 
-theta_sus <- theta.s(CADsus_GA)
+theta_sus <- theta.s(CAD_GA)
 theta_sus
 
 #getting pi
@@ -48,15 +48,15 @@ real_diff <- nuc_sus-nuc_res
 resamp_nucdiv_diff <-numeric(0)
 
 for (i in 1:1000){
-fasta.sample(infile = "/PATH_TO/ALL.fasta", nseq = 92,
+fasta.sample(infile = "/PATH/TO/ALL.fasta", nseq = 92,
              replacement = FALSE, file.out = "out.fasta")
 GA_resamp <- head(read.FASTA(file = "~/out.fasta"), n = 48)
 GAR_resamp <- tail(read.FASTA(file = "~/out.fasta"), n = 44)
 diff <- (nuc.div(GA_resamp))-(nuc.div(GAR_resamp))
-resamp_nucdiv_diff <- c(nucdiv_diff, diff)
+resamp_nucdiv_diff <- c(resamp_nucdiv_diff, diff)
 }
 
 
 hist(resamp_nucdiv_diff, main = "CAD86c Distribution of NucDiv Diff")
 
-sig <- sum(resamp_diff_nucdiv > real_diff)# shows the p-value for the permutation test.
+sig <- sum(resamp_nucdiv_diff > real_diff)# shows the p-value for the permutation test.
