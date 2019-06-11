@@ -48,6 +48,6 @@ logLik(fit_LG)
 bs <- bootstrap.pml(fit_LG, bs=1000, optNni=TRUE, multicore=TRUE, control = pml.control(trace=0))
 
 #final plot
-plotBS(midpoint(fit_LG$tree), bs, p = 30, type="p", bs.col = "red", cex = 1.3, bs.adj = c(1.1, 1.2))
+plotBS(midpoint(fit_LG$tree), bs, p = 10, type="p", bs.col = "red", cex = 1.2, bs.adj = c(1.1, 1.2))
 
 
