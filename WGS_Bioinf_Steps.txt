@@ -1,0 +1,258 @@
+Author: Schyler O. Nunziata
+
+PROJECT INFORMATION
+Whole Genome Sequencing of 10 H. zea samples to screen for regions of the genome under selection between Bt resistant and susceptible plots.
+
+All analyses are carried out of Amazon Web Servies (AWS) Instance (m4 large General Purpose) or Dell Precision Tower 3620. Sequence data, scripts, and analysis will be backed up to google drive and ultimately an external storage device.
+
+SAMPLE INFORMATION
+	H. zea Genome Assembly: hz5p2-fixed
+
+	Sample 	R/S 	Original Well Plate ID
+	B1 	Resistant 	Tabashnik Resistant Plate A6
+	C1 	Resistant 	Tabashnik Resistant Plate F6
+	D1 	Resistant 	Tabashnik Resistant Plate B6
+	E1 	Resistant 	Tabashnik Resistant Plate G5
+	H1 	Resistant 	Tabashnik Resistant Plate H5
+	D2 	Susceptible 	Tabashnik Susceptible Plate C5
+	F2 	Susceptible 	Tabashnik Susceptible Plate D7
+	G2 	Susceptible 	Tabashnik Susceptible Plate F4
+	D3 	Susceptible 	Tabashnik Susceptible Plate A7
+	E3 	Susceptible 	Tabashnik Susceptible Plate D5
+
+All sample DNA was isolated with a Qiagen DNeasy kit using a modified mouse-tail protocol and delivered to NCSU Genomic Sciences Laboratory as gDNA for library prep.
+
+SEQUENCING INFORMATION
+	Location: NCSU Genomic Sciences Laboratory
+	Platform: NextSeq 500, 150x2 PE flow cell
+	Library Prep Kit: Illumina Truseq Nano LT library prep kit 
+	Base Calling: RTA v2
+
+QUALITY FILTERING, GENOME ALIGNMENT, AND SNP CALLING STEPS AND ASSOCIATED SCRIPTS
+Step 1: Raw read quality filtering (NGS_QC_Tooltkit_Hzea.sh)
+	Program: NGS QC Toolkit v. 2.3.3
+	Program Citation: Patel, Ravi K., and Mukesh Jain. "NGS QC Toolkit: a toolkit for quality control of next generation sequencing data." PloS one 7.2 (2012): e30619.
+		Parameters:
+			Quality Filtering reads with more than 30% of the bases having a quality score below Q20 are removed.
+				Usage: perl IlluQC.pl -pe R1.fq R2.fq 2 A -l 70 -s 20
+
+Step 2: Filtered read trimming (NGS_QC_Toolkit_Hzea_trim.sh)
+	Program: NGS QC Toolkit v. 2.3.3
+	Program Citation: Patel, Ravi K., and Mukesh Jain. "NGS QC Toolkit: a toolkit for quality control of next generation sequencing data." PloS one 7.2 (2012): e30619.
+		Parameters: 
+			Bases with Q<20 were trimmed from the 3' end of remaining HQ filtered reads.
+				Usage: perl TrimmingReads.pl -i R1.fq -q 20 
+				perl TrimmingReads.pl -irev R2.fq -q 20
+	Citation for Rationale Behind Read Trimming: Del Fabbro, Cristian, et al. "An extensive evaluation of read trimming effects on Illumina NGS data analysis." PloS one 8.12 (2013): e85024.
+
+Step 3: Mapping HQ trimmed reads to reference genome
+	Program: Bowtie2 v. 2.3.2
+	Program Citation: Langmead, Ben, et al. "Ultrafast and memory-efficient alignment of short DNA sequences to the human genome." Genome biology 10.3 (2009): R25.
+		Index build (bowtie2_indexbuild.sh)
+			bowtie2-build hz5p2-fixed.fas hzea_genome 	
+		Run 1 Parameters, default end-to-end alignment (bowtie2_run1.sh) 
+			--sensitive (-D 15 -R 2 -L 22 -i S,1,1.15) -p 5 (use 5 processors)
+		Run 2 Parameters, very sensitive end-to-end alignment (bowtie2_run2.sh)
+			--very-sensitive (-D 20 -R 3 -N 0 -L 20 -i S,1,0.50) -p 5 (use 5 processors)
+
+Step 4: Convert sam to bam and sort
+	Program: Samtools v. 1.5
+	Program Citation: Li, Heng. "A statistical framework for SNP calling, mutation discovery, association mapping and population genetical parameter estimation from sequencing data." Bioinformatics 			27.21 (2011): 2987-2993.
+		Step 1: Convert sam to bam (bowtie2_run2.sh)
+			./samtools view -bS file.sam > file.bam	
+		Step 2: Sort the bam file (samtools_sort.sh)
+			./samtools sort file.bam -o file.sorted.bam 
+		
+
+Step 5: Remove PCR duplicates (picard_markdup.sh)	
+	Program: picard v. 2.10.5
+	Program Citation: No citation, cite the website: http://broadinstitute.github.io/picard.
+		Parameters: 
+			java -jar ~/Documents/Programs/picard.jar MarkDuplicates \
+      			I=file.sorted.bam \
+      			O=marked_duplicates.bam \
+      			M=marked_dup_metrics.txt \
+			
+ 
+Step 6: Further clean the alignment, keep only reads in proper pairs with good mapping quality (MAPQ >= 10) (samtools_filter.sh)
+	Program: Samtools v. 1.5
+	Program Citation: Li, Heng. "A statistical framework for SNP calling, mutation discovery, association mapping and population genetical parameter estimation from sequencing data." Bioinformatics
+		Parameters:  
+			./samtools samtools view -b -q 10 -hf 0x2 marked_duplicates.bam -o filtered.alignments.bam
+			
+	
+Step 7: Index the alignment (samtools_index.sh)
+	Program: Samtools v. 1.5 
+	Program Citation: Li, Heng. "A statistical framework for SNP calling, mutation discovery, association mapping and population genetical parameter estimation from sequencing data." Bioinformatics
+		Parameters:
+			./samtools index filtered.alignments.bam
+
+Step 8: Summary statistics about genome coverage (bedtools_cov.sh)
+	Program: bedtools v. 2.25.0
+	Program Citation: Quinlan, Aaron R., and Ira M. Hall. "BEDTools: a flexible suite of utilities for comparing genomic features." Bioinformatics 26.6 (2010): 841-842.
+		Parameters:
+			./samtools view -b filtered.alignments.bam | bedtools genomecov -ibam stdin -g genome.fasta > g_cvrg.txt
+
+Step 9: Variant Calling
+	Program: Samtools v. 0.1.5 
+	Program Citation: Li, Heng. "A statistical framework for SNP calling, mutation discovery, association mapping and population genetical parameter estimation from sequencing data." Bioinformatics
+		Parameters:
+			samtools mpileup --output-tag DP -ugf ../Genome_Assembly/hz5p2-fixed.fas *filtered.alignments.bam | bcftools call -vmO z -o Hzea_merge.vcf.gz
+
+POPULATION GENOMIC SNP FILTERING
+
+Step 1: Check the quality of the alignment
+	Program: qualimap
+	Program Citation: Okonechnikov, K., Conesa, A., & García-Alcalde, F. (2015). “Qualimap 2: advanced multi-sample quality control
+		for high-throughput sequencing data.” Bioinformatics, btv566
+	Program is a GUI. No parameters.
+
+
+Step 2: Filter SNPs with vcftools
+	Program: vcftools v.0.1.15
+	Program Citation: Danecek, Petr, et al. "The variant call format and VCFtools." Bioinformatics 27.15 (2011): 2156-2158.
+		Parameters: vcftools --gzvcf Hzea_merge.vcf.gz --maf 0.10 --min-alleles 2 --max-alleles 2 --max-missing 0.5 --minDP 5 --maxDP 424 --recode --stdout | gzip -c > Hzea_filtered.vcf.gz
+
+4963255 out of a possible 5106839 are biallelic
+4679092 out of a possible 5106839 are biallelic with 50% missing data cutoff
+2890916 out of a possible 5106839 are biallelic with 50% missing data cufoff, MAF > 0.10
+2408191 out of a possible 5106839 are biallelic with 50% missing data cufoff, MAF > 0.10, minDP 5, maxDP 424
+
+PFst OUTLIER ANALYSIS AND ANNOTATION
+
+Step 1: Find regions of the genome with high FST between sus and res strains. pFST is a likelihood ratio test that measures the difference in allele frequency between groups.
+	Program: vcflib
+	Program Citation: No citation, cite the website: https://github.com/ekg/vcflib/
+		Step 1:Calculate genome-wide pFst
+ 			~/Documents/Programs/vcflib/bin/pFst --target 0,1,2,5,9 --background 3,4,6,7,8 --file Hzea_merge_v2.vcf --type PL > pFST_all
+		Step 2:Average pFst for genomic windows (smoothed: window 5000bp, step 1000bp)
+			~/Documents/Programs/vcflib/bin/smoother --file pFST_all -o pFst > pST_all.smoothed
+		Step 3:Plot the smoothed pFst
+			R --vanilla < ~/Documents/Programs/vcflib/bin/plotSmoothed.R --args pST_all.smoothed pFst
+
+Step 2: Find scaffold positions with high pFst
+	In R: (Bonferroni correction p-value cut off is based on 225289 comparisons, 0.05/225289 = 2.22E-07)
+		fst<-read.table("pST_all.smoothed", header=FALSE)				
+		fst_high<-fst_sort[which(fst$V5 < 2.22E-07),]
+		write.table(fst_high, "fst_bon_outliers.txt", sep="\t", quote=FALSE, col.names = FALSE,row.names = FALSE)
+
+	In R: (Benjamini–Hochberg correction p-value cut off is 0.05 after adjustment
+		fst$V5<-p.adjust(fst$V5, method="BH")
+		fst_high<-fst[which(fst$V5 < 0.05),]
+		write.table(fst_high, "fst_bh_outliers.txt", sep="\t", quote=FALSE, col.names = FALSE, row.names = FALSE)
+
+Step 3: Find the genome annotations corresponding to the regions with significant pFst
+	Program:bedops
+	Program Citation
+		Step 1: Convert the gff3 genome annotations to a bed file
+			./gff2bed < hzea_ann_v2 > hzea_ann.bed
+		Step 2: Convert the outlier regions to a bed file
+			cut -f1,2,3 fst_bh_outliers.txt > fst_bh_outliers.bed
+		Step 2: Find the genes closest to the regions identified as outliers		
+			closest-features fst_bh_outliers.bed hzea_ann.bed > fst_bh_outlier_genes.bed
+
+Step 4: Create a fasta file of the protein sequences associated with regions with significant pFst (extract_outliers.sh)	
+	Used excel filtering of fst_bh_outlier_genes.bed to create the filtering script extract_outliers.sh	
+
+Step 4: Find the genes associated with the genome annotations of interest
+	Program: Blast2go
+	Program Citation:??
+		Step 1: Blast to the arthropoda protein database
+
+	
+POOLED HETEROZYGOSITY ANALYSIS
+
+Step 1: Divide the genome into sliding (=overlapping) windows of 40Kbp, with 20Kbp overlap:
+	bedtools makewindows -g hz5p2-fixed.fas.fai -w 40000 -s 20000 > windows.bed
+
+Step 2: Calculate allele counts in plink
+	~/Documents/Programs/plink_v1.9/plink --allow-extra-chr --vcf Hzea_filtered.vcf.gz --freq counts --keep resistant
+	mv plink.frq.counts ./resistant.counts
+	~/Documents/Programs/plink_v1.9/plink --allow-extra-chr --vcf Hzea_filtered.vcf.gz --freq counts --keep susceptible
+	mv plink.frq.counts ./susceptible.counts
+
+Step 3: Turn the plink count file into a bed file
+	Make sure SNP number is there:
+	awk '{print $2}' < out.frq | paste resistant.counts - > resistant.counts_v2
+	awk '{print $2}' < out.frq | paste susceptible.counts - > susceptible.counts_v2	
+	
+	mv resistant.counts_v2 ./resistant.counts
+	mv susceptible.counts_v2 ./susceptible.counts
+	
+	awk '{print $1,$8-1,$8,$2,$5}' resistant.counts > res_maj.bed 
+	awk '{print $1,$8-1,$8,$2,$6}' resistant.counts > res_min.bed
+	awk '{print $1,$8-1,$8,$2,$5}' susceptible.counts > sus_maj.bed 
+	awk '{print $1,$8-1,$8,$2,$6}' susceptible.counts > sus_min.bed
+
+	awk '{ for(i=1;i<=NF;i++){if(i==NF){printf("%s\n",$NF);}else {printf("%s\t",$i)}}}' res_maj.bed > res_maj.bed_v2
+	awk '{ for(i=1;i<=NF;i++){if(i==NF){printf("%s\n",$NF);}else {printf("%s\t",$i)}}}' res_min.bed > res_min.bed_v2
+	awk '{ for(i=1;i<=NF;i++){if(i==NF){printf("%s\n",$NF);}else {printf("%s\t",$i)}}}' sus_maj.bed > sus_maj.bed_v2
+	awk '{ for(i=1;i<=NF;i++){if(i==NF){printf("%s\n",$NF);}else {printf("%s\t",$i)}}}' sus_min.bed > sus_min.bed_v2
+
+	mv res_maj.bed_v2 ./res_maj.bed
+	mv res_min.bed_v2 ./res_min.bed
+	mv sus_maj.bed_v2 ./sus_maj.bed
+	mv sus_min.bed_v2 ./sus_min.bed
+	
+	sed -i '1d' res_maj.bed
+	sed -i '1d' res_min.bed
+	sed -i '1d' sus_maj.bed
+	sed -i '1d' sus_min.bed
+
+Step 3: Find intersecting regions from the plink output and windows (and remove any -nan values)
+	bedtools intersect -a <( sortBed -i windows.bed ) -b <( sortBed -i res_maj.bed ) -wa -wb > res_maj.tab
+	bedtools intersect -a <( sortBed -i windows.bed ) -b <( sortBed -i res_min.bed ) -wa -wb > res_min.tab
+	bedtools intersect -a <( sortBed -i windows.bed ) -b <( sortBed -i sus_maj.bed ) -wa -wb > sus_maj.tab
+	bedtools intersect -a <( sortBed -i windows.bed ) -b <( sortBed -i sus_min.bed ) -wa -wb > sus_min.tab
+	
+	sed -i '/-nan/d' ./res_maj.tab
+	sed -i '/-nan/d' ./res_min.tab
+	sed -i '/-nan/d' ./sus_maj.tab
+	sed -i '/-nan/d' ./sus_min.tab
+
+Step 4: Find the sum of allele counts 		
+	bedtools groupby -i res_maj.tab -g 1,2,3,4 -c 8 -o sum > res_count_maj.txt
+	bedtools groupby -i res_min.tab -g 1,2,3,4 -c 8 -o sum > res_count_min.txt
+	bedtools groupby -i sus_maj.tab -g 1,2,3,4 -c 8 -o sum > sus_count_maj.txt
+	bedtools groupby -i sus_min.tab -g 1,2,3,4 -c 8 -o sum > sus_count_min.txt
+
+Step 5: Calculate pooled het in R and plot
+	sus_min<-read.table("sus_count_min.txt", header=FALSE)
+	sus_maj<-read.table("sus_count_maj.txt", header=FALSE)
+	het_pool_sus<-2*(sus_maj$V5*sus_min$V5)/(sus_maj$V5+sus_min$V5)^2
+	d_sus <- density(het_pool_sus, na.rm=TRUE)
+	plot(d_sus)
+
+	res_min<-read.table("res_count_min.txt", header=FALSE)
+	res_maj<-read.table("res_count_maj.txt", header=FALSE)
+	het_pool_res<-2*(res_maj$V5*res_min$V5)/(res_maj$V5+res_min$V5)^2
+	d_res <- density(het_pool_res, na.rm=TRUE)
+	plot(d_res)
+
+RUNS OF HOMOZYGOSITY ANALYSIS
+
+Step 1: Create a list of independent SNPS
+	~/Documents/Programs/plink_v1.9/plink --bfile Hzea_SNPs --allow-extra-chr --indep 50 5 2 
+
+Step 2: Create a plink file with only the pruned SNPs
+	~/Documents/Programs/plink_v1.9/plink --bfile Hzea_SNPs --allow-extra-chr --extract plink.prune.in --make-bed --out prunedata
+
+Step 3: Scan for ROHs using the pruned file
+	~/Documents/Programs/plink_v1.9/plink --allow-extra-chr --bfile prunedata --homozyg group --homozyg-kb 250 --homozyg-snp 50 --homozyg-window-het 5
+
+USEFUL R COMMANDS
+
+GRAB THE ROWS CORRESPONDING TO OUTLIERS
+Hp_outliers_fst<-fst[fst$V4 %in% outliers,]
+
+Hp_scaf20 <- pi[grep("scaffold_20", pi$V1), ]
+
+Save as pdf
+dev.copy2pdf(file="yfile.pdf",useDingbats=FALSE,width=14,height=7)
+dev.off()
+
+GET DENSITY PLOT
+ggplot() + geom_histogram(aes(ZHp_res), bins=100)
+
+
+
