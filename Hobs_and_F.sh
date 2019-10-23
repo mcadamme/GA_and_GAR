@@ -15,6 +15,6 @@ vcftools --vcf Tabash_Hzea_filtered_SNPs.vcf --thin 50000 --out ./Tabash_WGS_sub
 
 vcftools --vcf Tabash_Hzea_filtered_SNPs.vcf --thin 100000 --out ./Tabash_WGS_subs/Filt_100000.vcf --recode
 
-R CMD BATCH /home/megan/Desktop/script_heterozygosity_pval_Tabash.R
+R CMD BATCH /home/megan/scripts/Tabashnik_work/script_heterozygosity_pval_Tabash.R
 
 

@@ -1,7 +1,6 @@
 #This is my script to calculate the BCa boostraps for observed heterozygosity for each population.
 
-library(adegenet); library(vcfR); library(hierfstat); library(bootstrap); library(reshape2); library(ggplot2)
-
+library(adegenet); library(vcfR); library(hierfstat); library(bootstrap); library(reshape2); library(ggplot2); library(StAMPP)
 
 setwd("/media/megan/New Volume/Tabash_WGS_subs")
 
@@ -15,6 +14,7 @@ for (vcf_file in c("Filt_5000.vcf.recode.vcf","Filt_10000.vcf.recode.vcf","Filt_
   data_genind <- vcfR2genind(data) #converts file format
   data_genind@pop <- as.factor(c(1,1,1,2,2,1,2,2,2,1))
   print(vcf_file)
+  
   
   All_hier <- genind2hierfstat(data_genind, pop = data_genind@pop)
   sum_data_All_hier <- basic.stats(All_hier)
@@ -76,5 +76,26 @@ for (vcf_file in c("Filt_5000.vcf.recode.vcf","Filt_10000.vcf.recode.vcf","Filt_
 
   #save plots as .png
   ggsave(plot, file=paste(vcf_file, ".png", sep=''), scale=2)
+  
+  
+  #Getting pairwise genetic distances with confint
+  data_genlite <- vcfR2genlight(data, n.cores = 3)
+  data_genlite$pop <- as.factor(c(1,1,1,2,2,1,2,2,2,1))
+  data_stampp <- stamppConvert(data_genlite, type = "genlight")
+  
+  data_stampp_R <- data_stampp[c(1:3,6,10),]
+  data_stampp_S <- data_stampp[c(4,5,7:9),]
+  
+  Res.D.ind <- stamppNeisD(data_stampp_R, FALSE)
+  Sus.D.ind <- stamppNeisD(data_stampp_S, FALSE)
+  print("Mean genetic distances between individuals for resistant and susceptible populations are:")
+  print(mean(Res.D.ind))
+  print(mean(Sus.D.ind))
+  
+  D_Res <- bcanon(Res.D.ind,1000,mean)   
+  D_Sus <- bcanon(Sus.D.ind,1000,mean)
+  
+  print(D_Res$confpoints)
+  print(D_Sus$confpoints)
   
 }
