@@ -1,6 +1,9 @@
 #Script to get distribution of FST values under neutral model using MSMS simulated genos
 #103012019
 
+
+setwd("~/ms_sims/")
+
 #Loading packages
 x <- c("adegenet", "hierfstat")
 
@@ -16,11 +19,11 @@ f <- function(x) {
 
 out.file <- ""
 
-file.names <- dir("/home/megan/ms_sims/", pattern ="_output.txt")
+file.names <- dir("./", pattern ="output.txt")
 for(i in 1:length(file.names)){
   
-  #df <- read.csv(file.names[i], header = F)
-  df <- read.csv("999.txt_output.txt", header = F)
+  df <- read.csv(file.names[i], header = F)
+  #df <- read.csv("999.txt_output.txt", header = F)
 
   # run algorithm for each column
   df2 <- as.data.frame(lapply(df, f), stringsAsFactors=FALSE)
@@ -37,14 +40,14 @@ for(i in 1:length(file.names)){
 }
 
 
-write.table(out.file, "/home/megan/ms_sims/FST_msSims.out", row.names = F, col.names = F)
+write.table(out.file, "FST_msSims.out", row.names = F, col.names = F)
 
 out.file_num <- as.numeric(as.character(out.file[-1,]))
 Prob <- sum(out.file_num > 0.44)#lowest 40kb FST val in Cad86c region
 print(Prob)
 
 png(filename = "Dist_Fst_Neutral.png", units = "px", height = 600, width = 700)
-hist(out.file_num, breaks = 1000, xlim = c(-0.1, 0.2), ylim = c(0,15))
+hist(out.file_num, breaks = 100, xlim = c(-0.1, 0.2), ylim = c(0,100))
 dev.off()
 
 

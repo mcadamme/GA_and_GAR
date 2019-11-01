@@ -14,6 +14,7 @@ java -jar /home/megan/src/msms/lib/msms.jar 20 1000 -N 600 -t 0.19 -r 3.8 -I 4 5
 -em 0.015 2 4 50.0 \
 -en 0.0154 2 1.5 \
 -en 0.0154 4 1.5 \
+-em 0.0154 2 4 0 \
 -ej 0.028 4 2 \
 -eN 0.029 0.1 \
 -eN 0.03 167 > /home/megan/ms_sims/ms_neutralModel_sim.txt
@@ -30,6 +31,7 @@ do
 cat $file | gawk '{$1=$1}1' FPAT='.{1}' OFS=, > "$file"_output.txt
 done
 
+rm ./ms_neutralModel_sim.txt_output.txt
 #Next, run msms_sim_analysis.R
 
 
