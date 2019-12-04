@@ -2,7 +2,7 @@
 #103012019
 
 
-setwd("~/ms_sims/orig_sim/")
+setwd("~/ms_sims/extra_sims/Half_Founder/")
 
 #Loading packages
 x <- c("adegenet", "hierfstat")
@@ -19,11 +19,11 @@ f <- function(x) {
 
 out.file <- ""
 
-file.names1 <- head(dir("./", pattern ="output.txt"), n=5001)
+file.names2 <- tail(dir("./", pattern ="output.txt"), n=5000)
 
-for(i in 1:length(file.names1)){
+for(i in 1:length(file.names2)){
 
-  df <- read.csv(file.names1[i], header = F)
+  df <- read.csv(file.names2[i], header = F)
   
   # run algorithm for each column
   df2 <- as.data.frame(lapply(df, f), stringsAsFactors=FALSE)
@@ -39,4 +39,6 @@ for(i in 1:length(file.names1)){
   out.file <- rbind(out.file, FST_mat[1,2])
 }
 
-write.table(out.file, "FST_msSims1.out", row.names = F, col.names = F)
+
+write.table(out.file, "FST_msSims8.out", row.names = F, col.names = F)
+

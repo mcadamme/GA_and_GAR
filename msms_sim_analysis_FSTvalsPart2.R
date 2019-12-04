@@ -2,7 +2,7 @@
 #103012019
 
 
-setwd("~/ms_sims/")
+setwd("~/ms_sims/orig_sim")
 
 #Loading packages
 x <- c("adegenet", "hierfstat")
